@@ -1,0 +1,19 @@
+[package]
+name = "bevy_fallable_derive"
+version = "0.3.0"
+authors = ["barsoosayque <shtoshich@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.24"
+syn = { version = "1.0.51", features = ['full', 'fold', 'visit'] }
+quote = "1.0.7"
+bevy_app = "0.3.0"
+bevy_ecs = "0.3.0"
+
+[dev-dependencies]
+trybuild = "1.0.35"
+anyhow = "1.0.34"
