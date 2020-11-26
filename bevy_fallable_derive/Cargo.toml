@@ -11,10 +11,7 @@ proc-macro = true
 proc-macro2 = "1.0.24"
 syn = { version = "1.0.51", features = ['full', 'fold', 'visit', 'extra-traits'] }
 quote = "1.0.7"
-bevy_app = "0.3.0"
-bevy_ecs = "0.3.0"
 
 [dev-dependencies]
 bevy_fallable = { path = "../bevy_fallable/" }
-trybuild = "1.0.35"
 anyhow = "1.0.34"
