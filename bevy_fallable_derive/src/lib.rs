@@ -2,112 +2,86 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     fold::{self, Fold},
-    parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
-    punctuated::Punctuated,
-    token::Comma,
+    parse_macro_input, parse_quote, parse_str,
     visit::{self, Visit},
-    Block, Error, Ident, ItemFn, Pat, Result, ReturnType, Signature,
+    Block, FnArg, ItemFn, PatType, ReturnType, Signature, Type,
 };
 
-#[derive(Clone, Copy)]
-enum Mode {
-    Replace,
-    Keep,
-}
-impl Parse for Mode {
-    fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Ident>().map_or(Ok(Mode::Replace), |ident| {
-            if ident == "keep" {
-                Ok(Mode::Keep)
-            } else {
-                Err(Error::new(ident.span(), "unexpected attribute"))
-            }
-        })
-    }
-}
-
-struct ArgCollectorVisit(Vec<Pat>);
+struct ArgCollectorVisit(Vec<PatType>);
 impl<'ast> Visit<'ast> for ArgCollectorVisit {
-    fn visit_pat(&mut self, pat: &'ast Pat) {
+    fn visit_pat_type(&mut self, pat: &'ast PatType) {
         self.0.push(pat.to_owned());
     }
 }
 
-struct OriginalFold {
-    mode: Mode,
-}
-impl OriginalFold {
-    fn new(mode: Mode) -> Self { Self { mode } }
-}
-impl Fold for OriginalFold {
-    fn fold_signature(&mut self, mut node: Signature) -> Signature {
-        match self.mode {
-            Mode::Replace => node,
-            Mode::Keep => {
-                node.ident = Ident::new(&format!("{}_fallable", node.ident), node.ident.span());
-                node
-            }
-        }
+fn is_command(pat: &PatType) -> bool {
+    if let Type::Path(path) = pat.ty.as_ref() {
+        path.path.is_ident("bevy_ecs::Commands") || path.path.is_ident("Commands")
+    } else {
+        false
     }
 }
 
+#[derive(Default)]
 struct ModifiedFold {
-    mode: Mode,
     sig: Option<Signature>,
-}
-impl ModifiedFold {
-    fn new(mode: Mode) -> Self { Self { mode, sig: None } }
 }
 impl Fold for ModifiedFold {
     fn fold_signature(&mut self, mut node: Signature) -> Signature {
         self.sig = Some(node.clone());
         node.output = ReturnType::Default;
+
+        let mut args_visit = ArgCollectorVisit(vec![]);
+        visit::visit_signature(&mut args_visit, &node);
+        let injection =
+            parse_str::<FnArg>("mut __error_events: bevy_ecs::ResMut<bevy_app::Events<bevy_fallable::SystemErrorEvent>>")
+            .ok()
+            .and_then(|arg| if let FnArg::Typed(pat) = arg { Some(pat) } else { None })
+            .unwrap();
+
+        let pats = if let Some((commands, rest)) =
+            args_visit.0.split_first().filter(|(p, _)| is_command(p))
+        {
+            [&[commands.to_owned(), injection], rest].concat()
+        } else {
+            [&[injection], args_visit.0.as_slice()].concat()
+        };
+        node.inputs = pats.into_iter().map(|pat| FnArg::from(pat)).collect();
         node
     }
 
     fn fold_block(&mut self, node: Block) -> Block {
         let sig = self.sig.as_ref().unwrap();
+        let ident = format!("{}", sig.ident);
         let ret = match &sig.output {
-            ReturnType::Default => panic!("fallable system should return something"),
-            ReturnType::Type(_, t) => t
+            ReturnType::Default => panic!("fallable system should return Result"),
+            ReturnType::Type(_, t) => t,
         };
 
-        let mut block = match self.mode {
-            Mode::Replace => {
-                let body: proc_macro2::TokenStream = node.stmts.into_iter().fold(
-                    proc_macro2::TokenStream::new(),
-                    |mut tokens, stmt| {
-                        stmt.to_tokens(&mut tokens);
-                        tokens
-                    },
-                );
+        let body: proc_macro2::TokenStream =
+            node.stmts
+                .into_iter()
+                .fold(proc_macro2::TokenStream::new(), |mut tokens, stmt| {
+                    stmt.to_tokens(&mut tokens);
+                    tokens
+                });
 
-                vec![parse_quote! {
-                    let r: #ret = { #body };
-                }]
+        let stmts = vec![
+            parse_quote! { let __res: #ret = { #body }; },
+            parse_quote! {
+                match __res {
+                    Ok(_) => (),
+                    Err(err) => {
+                        __error_events.send(bevy_fallable::SystemErrorEvent { system_name: #ident, error: err.into() });
+                    }
+                };
             }
-            Mode::Keep => {
-                let name = Ident::new(&format!("{}_fallable", sig.ident), sig.ident.span());
-                let mut args_visit = ArgCollectorVisit(vec![]);
-                visit::visit_signature(&mut args_visit, &sig);
-                let args: Punctuated<Pat, Comma> = args_visit.0.iter().cloned().collect();
+        ];
 
-                vec![parse_quote! {
-                    let r: #ret = #name(#args);
-                }]
-            }
-        };
-        block.push(parse_quote! {
-            match r {
-                Err(err) => {},
-                Ok(_) => {}
-            };
-        });
 
         Block {
             brace_token: node.brace_token,
-            stmts: block,
+            stmts,
         }
     }
 }
@@ -128,21 +102,10 @@ impl Fold for ModifiedFold {
 ///         .run();
 /// }
 /// ```
-///
-/// If used with `#[fallable_system(keep)]`, will additionally add suffix
-/// *_fallable* to the original function, so you will have two functions
-///  as an output.
 #[proc_macro_attribute]
-pub fn fallable_system(attrs: TokenStream, code: TokenStream) -> TokenStream {
+pub fn fallable_system(_attrs: TokenStream, code: TokenStream) -> TokenStream {
     let input = parse_macro_input!(code as ItemFn);
-    let mode = parse_macro_input!(attrs);
-
-    let original = fold::fold_item_fn(&mut OriginalFold::new(mode), input.clone());
-    let modified = fold::fold_item_fn(&mut ModifiedFold::new(mode), input);
-
-    let gen = match mode {
-        Mode::Replace => quote! { #modified },
-        Mode::Keep => quote! { #original #modified }
-    };
+    let modified = fold::fold_item_fn(&mut ModifiedFold::default(), input);
+    let gen = quote! { #modified };
     gen.into()
 }
