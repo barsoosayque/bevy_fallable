@@ -75,9 +75,8 @@ impl Fold for ModifiedFold {
                         __error_events.send(bevy_fallable::SystemErrorEvent { system_name: #ident, error: err.into() });
                     }
                 };
-            }
+            },
         ];
-
 
         Block {
             brace_token: node.brace_token,

@@ -1,5 +1,17 @@
+[package]
+name = "bevy_fallable"
+version = "0.3.0"
+authors = ["barsoosayque <shtoshich@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+bevy_fallable_derive = { path = "bevy_fallable_derive/", version = "0.3.0" }
+bevy_app = "0.3.0"
+bevy_ecs = "0.3.0"
+
+[dev-dependencies]
+anyhow = "1.0.34"
+bevy = "0.3.0"
+
 [workspace]
-members = [
-    'bevy_fallable_derive',
-    'bevy_fallable'
-]
+members = ['bevy_fallable_derive']

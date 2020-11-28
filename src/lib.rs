@@ -13,7 +13,7 @@ pub struct SystemErrorEvent {
     /// Name of the system
     pub system_name: &'static str,
     /// Error produced by the system
-    pub error: Box<dyn Error + Send + Sync>
+    pub error: Box<dyn Error + Send + Sync + 'static>,
 }
 
 /// Plugin to register fallable system parts.
