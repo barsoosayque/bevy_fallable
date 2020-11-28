@@ -1,8 +1,11 @@
 [package]
 name = "bevy_fallable_derive"
 version = "0.3.0"
-authors = ["barsoosayque <shtoshich@gmail.com>"]
 edition = "2018"
+authors = ["barsoosayque <shtoshich@gmail.com>"]
+description = "Proc macro crate for bevy_fallable"
+repository = "https://github.com/barsoosayque/bevy_fallable"
+license = "MIT"
 
 [lib]
 proc-macro = true
