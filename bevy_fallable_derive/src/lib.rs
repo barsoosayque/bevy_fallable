@@ -34,7 +34,7 @@ impl Fold for ModifiedFold {
         let mut args_visit = ArgCollectorVisit(vec![]);
         visit::visit_signature(&mut args_visit, &node);
         let injection =
-            parse_str::<FnArg>("mut __error_events: bevy_ecs::ResMut<bevy_app::Events<bevy_fallable::SystemErrorEvent>>")
+            parse_str::<FnArg>("mut __error_events: ::bevy_fallable::bevy_ecs::ResMut<::bevy_fallable::bevy_app::Events<::bevy_fallable::SystemErrorEvent>>")
             .ok()
             .and_then(|arg| if let FnArg::Typed(pat) = arg { Some(pat) } else { None })
             .unwrap();
@@ -72,7 +72,7 @@ impl Fold for ModifiedFold {
                 match __res {
                     Ok(_) => (),
                     Err(err) => {
-                        __error_events.send(bevy_fallable::SystemErrorEvent { system_name: #ident, error: err.into() });
+                        __error_events.send(::bevy_fallable::SystemErrorEvent { system_name: #ident, error: err.into() });
                     }
                 };
             },
