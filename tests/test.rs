@@ -26,15 +26,19 @@ fn system_with_commands(mut _commands: Commands, res: Res<CustomRes>) -> Result<
     Ok(())
 }
 
-#[fallable_system]
-fn faulty_system(mut res: ResMut<ShouldFail>) -> Result<()> {
-    let val = res.0;
-    res.0 = !res.0;
-    if val {
+fn faulty_query(res: &ShouldFail) -> Result<()> {
+    if res.0 {
         Err(anyhow!("fail"))
     } else {
         Ok(())
     }
+}
+
+#[fallable_system]
+fn faulty_system(mut res: ResMut<ShouldFail>) -> Result<()> {
+    res.0 = !res.0;
+    let val = faulty_query(&res)?;
+    Ok(val)
 }
 
 fn counter_system(mut events: ResMut<Events<SystemErrorEvent>>, mut storage: ResMut<ErrorStorage>) {

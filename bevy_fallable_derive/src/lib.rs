@@ -67,9 +67,9 @@ impl Fold for ModifiedFold {
                 });
 
         let stmts = vec![
-            parse_quote! { let __res: #ret = { #body }; },
+            parse_quote! { let mut __impl = || -> #ret { #body }; },
             parse_quote! {
-                match __res {
+                match __impl() {
                     Ok(_) => (),
                     Err(err) => {
                         __error_events.send(::bevy_fallable::SystemErrorEvent { system_name: #ident, error: err.into() });
