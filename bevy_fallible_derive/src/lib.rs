@@ -4,21 +4,13 @@ use syn::{
     fold::{self, Fold},
     parse_macro_input, parse_quote, parse_str,
     visit::{self, Visit},
-    Block, FnArg, ItemFn, PatType, ReturnType, Signature, Type,
+    Block, FnArg, ItemFn, PatType, ReturnType, Signature
 };
 
 struct ArgCollectorVisit(Vec<PatType>);
 impl<'ast> Visit<'ast> for ArgCollectorVisit {
     fn visit_pat_type(&mut self, pat: &'ast PatType) {
         self.0.push(pat.to_owned());
-    }
-}
-
-fn is_command(pat: &PatType) -> bool {
-    if let Type::Path(path) = pat.ty.as_ref() {
-        path.path.is_ident("bevy_ecs::Commands") || path.path.is_ident("Commands")
-    } else {
-        false
     }
 }
 
@@ -34,18 +26,12 @@ impl Fold for ModifiedFold {
         let mut args_visit = ArgCollectorVisit(vec![]);
         visit::visit_signature(&mut args_visit, &node);
         let injection =
-            parse_str::<FnArg>("mut __error_events: ::bevy_fallable::bevy_ecs::ResMut<::bevy_fallable::bevy_app::Events<::bevy_fallable::SystemErrorEvent>>")
+            parse_str::<FnArg>("mut __error_events: ::bevy_fallible::bevy_ecs::ResMut<::bevy_fallible::bevy_app::Events<::bevy_fallible::SystemErrorEvent>>")
             .ok()
             .and_then(|arg| if let FnArg::Typed(pat) = arg { Some(pat) } else { None })
             .unwrap();
 
-        let pats = if let Some((commands, rest)) =
-            args_visit.0.split_first().filter(|(p, _)| is_command(p))
-        {
-            [&[commands.to_owned(), injection], rest].concat()
-        } else {
-            [&[injection], args_visit.0.as_slice()].concat()
-        };
+        let pats = [&[injection], args_visit.0.as_slice()].concat();
         node.inputs = pats.into_iter().map(|pat| FnArg::from(pat)).collect();
         node
     }
@@ -54,7 +40,7 @@ impl Fold for ModifiedFold {
         let sig = self.sig.as_ref().unwrap();
         let ident = format!("{}", sig.ident);
         let ret = match &sig.output {
-            ReturnType::Default => panic!("fallable system should return Result"),
+            ReturnType::Default => panic!("fallible system should return Result"),
             ReturnType::Type(_, t) => t,
         };
 
@@ -72,7 +58,7 @@ impl Fold for ModifiedFold {
                 match __impl() {
                     Ok(_) => (),
                     Err(err) => {
-                        __error_events.send(::bevy_fallable::SystemErrorEvent { system_name: #ident, error: err.into() });
+                        __error_events.send(::bevy_fallible::SystemErrorEvent { system_name: #ident, error: err.into() });
                     }
                 };
             },
@@ -85,12 +71,12 @@ impl Fold for ModifiedFold {
     }
 }
 
-/// A function attribute to use with fallable systems.
+/// A function attribute to use with fallible systems.
 /// By default, will convert a system that returns a Result to
 /// system with no return value, and will propagate errors as bevy events.
 ///
 /// ```no_run
-/// #[fallable_system]
+/// #[fallible_system]
 /// fn system(asset_server: Res<AssetServer>) -> anyhow::Result<()> {
 ///     let handle: Handle<Texture> = asset_server.load("texture")?;
 /// }
@@ -102,7 +88,7 @@ impl Fold for ModifiedFold {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn fallable_system(_attrs: TokenStream, code: TokenStream) -> TokenStream {
+pub fn fallible_system(_attrs: TokenStream, code: TokenStream) -> TokenStream {
     let input = parse_macro_input!(code as ItemFn);
     let modified = fold::fold_item_fn(&mut ModifiedFold::default(), input);
     let gen = quote! { #modified };

@@ -5,9 +5,9 @@ use std::error::Error;
 pub use bevy_app;
 pub use bevy_ecs;
 
-pub use bevy_fallable_derive::fallable_system;
+pub use bevy_fallible_derive::fallible_system;
 
-/// Event which is sent every time a fallable_system results
+/// Event which is sent every time a fallible_system results
 /// in an error.
 pub struct SystemErrorEvent {
     /// Name of the system
@@ -16,10 +16,10 @@ pub struct SystemErrorEvent {
     pub error: Box<dyn Error + Send + Sync + 'static>,
 }
 
-/// Plugin to register fallable system parts.
-pub struct FallableSystemPlugin;
+/// Plugin to register fallible system parts.
+pub struct FallibleSystemPlugin;
 
-impl Plugin for FallableSystemPlugin {
+impl Plugin for FallibleSystemPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_event::<SystemErrorEvent>();
     }

@@ -1,22 +1,22 @@
 [package]
-name = "bevy_fallable"
-version = "0.3.0"
+name = "bevy_fallible"
+version = "0.4.0"
 edition = "2018"
 authors = ["barsoosayque <shtoshich@gmail.com>"]
-description = "A simple plugin to add fallable systems to Bevy game engine"
-repository = "https://github.com/barsoosayque/bevy_fallable"
+description = "A simple plugin to add fallible systems to Bevy game engine"
+repository = "https://github.com/barsoosayque/bevy_fallible"
 license = "MIT"
 keywords = ["game", "engine", "bevy"]
 categories = ["game-engines"]
 readme = "README.md"
 
 [dependencies]
-bevy_fallable_derive = { path = "bevy_fallable_derive/", version = "0.3.0" }
-bevy_app = "0.3.0"
-bevy_ecs = "0.3.0"
+bevy_fallible_derive = { path = "bevy_fallible_derive/", version = "0.4.0" }
+bevy_app = "0.4.0"
+bevy_ecs = "0.4.0"
 
 [dev-dependencies]
 anyhow = "1.0.34"
 
 [workspace]
-members = ['bevy_fallable_derive']
+members = ['bevy_fallible_derive']
