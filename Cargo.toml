@@ -12,11 +12,11 @@ readme = "README.md"
 
 [dependencies]
 bevy_fallible_derive = { path = "bevy_fallible_derive/", version = "0.4.0" }
-bevy_app = "0.4.0"
-bevy_ecs = "0.4.0"
+bevy_app = "0.13"
+bevy_ecs = "0.13"
 
 [dev-dependencies]
-anyhow = "1.0.34"
+anyhow = "1.0.80"
 
 [workspace]
 members = ['bevy_fallible_derive']
